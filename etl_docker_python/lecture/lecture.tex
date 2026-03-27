@@ -1,0 +1,136 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{listings}
+\geometry{margin=2.5cm}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  showstringspaces=false
+}
+
+\title{Prática de Engenharia de Dados com Docker e ETL em Python}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Objetivo da prática}
+Esta prática tem como objetivo apresentar, de forma aplicada, a construção de um pipeline de ETL utilizando Python, Docker e PostgreSQL. Em vez de trabalhar com notebooks, a proposta utiliza uma estrutura próxima de um projeto real de engenharia de dados, com separação entre configuração, extração, transformação, carga e documentação.
+
+O caso proposto consiste em consumir dados de uma API pública, aplicar tratamentos básicos de qualidade e persistir o resultado em um banco relacional. A API escolhida é a Open Brewery DB, uma interface pública que disponibiliza informações sobre cervejarias em formato JSON.
+
+\section{Fundamentos teóricos}
+\subsection{O que é ETL}
+ETL é a sigla para Extract, Transform and Load. Trata-se de um processo clássico de integração de dados em que informações são extraídas de uma ou mais fontes, transformadas de acordo com regras de negócio ou qualidade e, por fim, carregadas em um destino analítico ou operacional.
+
+A etapa de extração é responsável por acessar a fonte de dados e coletar os registros. A transformação converte os dados para um formato padronizado, corrige inconsistências, trata valores ausentes e produz uma estrutura compatível com o modelo final. A carga realiza a persistência dos dados no ambiente de destino, como um banco relacional ou um data warehouse.
+
+\subsection{Por que usar Python em ETL}
+Python é amplamente utilizado em pipelines de dados devido à sua legibilidade, sua vasta disponibilidade de bibliotecas e sua facilidade de integração com APIs, bancos de dados e serviços externos. Bibliotecas como \texttt{requests}, \texttt{psycopg2}, \texttt{pandas} e frameworks de orquestração tornam Python uma escolha frequente em ambientes acadêmicos e corporativos.
+
+Nesta prática, Python foi usado para manter o pipeline simples, modular e fácil de inspecionar. Cada etapa foi implementada em um arquivo separado, o que favorece manutenção, testes e reutilização.
+
+\subsection{Por que usar Docker}
+Docker permite empacotar aplicações e suas dependências em contêineres isolados. Em um projeto de dados, isso reduz problemas de compatibilidade entre ambientes e facilita a reprodução do experimento em diferentes máquinas.
+
+Ao usar Docker Compose, também é possível subir múltiplos serviços conjuntamente, como uma aplicação Python e um banco PostgreSQL, garantindo que todo o ambiente da prática seja reproduzido com um único comando.
+
+\subsection{Papel do banco PostgreSQL}
+O PostgreSQL foi escolhido como repositório final dos dados por ser um sistema gerenciador de banco relacional robusto, amplamente adotado na indústria e adequado para demonstrações de persistência estruturada. Nesta prática, ele recebe os dados transformados e permite consultas posteriores para validação da carga.
+
+\section{Descrição do caso}
+O projeto implementa um ETL que consome dados da Open Brewery DB. O pipeline realiza paginação na API, coleta os registros disponíveis, padroniza campos textuais e numéricos e grava os resultados em uma tabela chamada \texttt{breweries}.
+
+O foco da prática não está apenas em obter os dados, mas em estruturar o processo de forma profissional. Por isso, os arquivos foram organizados em diretórios específicos e o pipeline foi separado em módulos:
+
+\begin{itemize}
+    \item \texttt{config.py}: centraliza variáveis de ambiente e parâmetros de execução;
+    \item \texttt{extract.py}: cuida da comunicação com a API;
+    \item \texttt{transform.py}: aplica limpeza e padronização;
+    \item \texttt{load.py}: realiza a persistência no PostgreSQL;
+    \item \texttt{main.py}: orquestra a execução completa.
+\end{itemize}
+
+\section{Estrutura do projeto}
+\begin{lstlisting}
+etl_docker_python/
+|-- docker-compose.yml
+|-- Dockerfile
+|-- requirements.txt
+|-- .env.example
+|-- README.md
+|-- db/
+|   `-- init.sql
+|-- src/
+|   |-- __init__.py
+|   |-- config.py
+|   |-- extract.py
+|   |-- transform.py
+|   |-- load.py
+|   `-- main.py
+`-- lecture/
+    `-- lecture.tex
+\end{lstlisting}
+
+\section{Execução do pipeline}
+\subsection{Passo 1: inicialização do ambiente}
+O ambiente é iniciado com Docker Compose:
+
+\begin{lstlisting}
+docker compose up --build
+\end{lstlisting}
+
+Esse comando constrói a imagem da aplicação Python, sobe o container do PostgreSQL, aplica o script de inicialização do banco e executa o arquivo principal do ETL.
+
+\subsection{Passo 2: extração}
+Na etapa de extração, o sistema chama a API pública utilizando paginação. Foram definidos parâmetros de quantidade por página e número máximo de páginas. Também foi implementado um mecanismo simples de retry para tolerar falhas temporárias de rede.
+
+\subsection{Passo 3: transformação}
+A transformação limpa espaços em branco, converte campos numéricos para tipo \texttt{float}, trata nulos e descarta registros sem identificador ou nome. Essa etapa representa uma camada mínima de controle de qualidade dos dados.
+
+\subsection{Passo 4: carga}
+Na carga, os registros são inseridos no PostgreSQL com estratégia de \textit{upsert}. Isso significa que, se o identificador da cervejaria já existir na tabela, o registro é atualizado. Essa abordagem torna o pipeline idempotente, permitindo reexecuções sem duplicação indevida.
+
+\subsection{Passo 5: validação}
+Após a execução, é possível acessar o banco e validar os dados inseridos:
+
+\begin{lstlisting}
+docker exec -it etl_postgres psql -U etl_user -d etl_db
+\end{lstlisting}
+
+Dentro do banco, podem ser executadas consultas como:
+
+\begin{lstlisting}
+SELECT COUNT(*) FROM breweries;
+SELECT * FROM breweries LIMIT 10;
+\end{lstlisting}
+
+\section{Aspectos didáticos e profissionais}
+Esta prática é importante porque aproxima o estudante da forma como pipelines são organizados em ambientes reais. Em vez de concentrar toda a lógica em um notebook, o projeto distribui responsabilidades em módulos. Isso favorece clareza arquitetural, testes futuros e integração com ferramentas de orquestração.
+
+Além disso, o uso de Docker reduz a dependência do ambiente local do aluno e reforça a noção de portabilidade. O uso de banco relacional também permite discutir persistência, chaves primárias, integridade e reprocessamento.
+
+\section{Possíveis extensões}
+A prática pode ser evoluída com diversas melhorias. Entre elas, destacam-se a criação de uma camada de staging para armazenar o dado bruto, a inclusão de logs estruturados, a implementação de testes automatizados, a persistência de dados em arquivos intermediários e a orquestração com Airflow ou Prefect.
+
+Também é possível trocar a API pública utilizada, adaptando a mesma arquitetura para fontes como BrasilAPI, Open-Meteo, APIs do IBGE ou outras fontes abertas disponíveis na web.
+
+\section{Conclusão}
+A proposta apresentada demonstra um caso completo, porém enxuto, de ETL em Python com Docker. O projeto cobre fundamentos centrais de engenharia de dados: consumo de API, tratamento de qualidade, persistência em banco relacional, organização modular de código e execução reprodutível em contêineres.
+
+Do ponto de vista pedagógico, trata-se de uma prática adequada para disciplinas introdutórias ou intermediárias de engenharia de dados, arquitetura de dados e desenvolvimento backend orientado a integração.
+
+\end{document}
