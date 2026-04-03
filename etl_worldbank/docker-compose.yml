@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: etl_wb_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-etl_worldbank}
+      POSTGRES_USER: ${DB_USER:-etl_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-etl_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-etl_user} -d ${DB_NAME:-etl_worldbank}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  etl_app:
+    build: .
+    container_name: etl_wb_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+    restart: "no"
+
+volumes:
+  postgres_data:
