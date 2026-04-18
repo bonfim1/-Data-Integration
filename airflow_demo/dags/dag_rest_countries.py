@@ -48,7 +48,7 @@ API_FIELDS = (
     dag_id="etl_rest_countries",
     description="Pipeline ETL: REST Countries API → PostgreSQL",
     schedule="@daily",
-    start_date=datetime(2026, 1, 1),
+    start_date=datetime(2026, 4, 16),
     catchup=False,
     tags=["etl", "demo", "semana10"],
     default_args={
@@ -102,9 +102,9 @@ def etl_rest_countries():
         for country in raw_data:
             # Filtro: precisa ter código ISO alpha-2 de 2 caracteres
             cca2 = country.get("cca2", "")
-            if not cca2 or len(cca2) != 2:
+            if not cca2 or len(cca2) != 2: # cca2 documentação da api
                 discarded += 1
-                continue
+                continue # sai do loop atual e vai para o próximo país
 
             # Extrair nome comum e oficial
             name_data = country.get("name", {})
